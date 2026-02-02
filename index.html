@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Soleil Capital - Professional Trading Journal & Portfolio Analytics Dashboard">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>Soleil Capital | Trading Journal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --color-terminal-bg: #0a0a0a;
+            --color-terminal-green: #00ff41;
+            --color-terminal-green-dim: #00aa2a;
+            --color-terminal-green-glow: rgba(0, 255, 65, 0.3);
+            --color-sun-yellow: #ffdd00;
+            --color-sun-orange: #ff9500;
+            --color-bg-primary: #0a0a0a;
+            --color-bg-secondary: #0d0d0d;
+            --color-bg-card: #111111;
+            --color-bg-hover: #1a1a1a;
+            --color-border: #00ff4130;
+            --color-text-primary: #e6edf3;
+            --color-text-secondary: #8b949e;
+            --color-text-muted: #6e7681;
+            --color-success: #3fb950;
+            --color-danger: #f85149;
+            --color-info: #58a6ff;
+            --color-purple: #a371f7;
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --space-8: 32px;
+            --space-12: 48px;
+            --font-size-xs: 0.65rem;
+            --font-size-sm: 0.75rem;
+            --font-size-base: 0.85rem;
+            --font-size-md: 0.9rem;
+            --font-size-lg: 1.1rem;
+            --font-size-xl: 1.3rem;
+            --font-size-2xl: 1.5rem;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --transition-fast: 150ms ease;
+            --transition-normal: 300ms ease;
+            --sidebar-width: 280px;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+        body { font-family: 'VT323', monospace; background-color: var(--color-terminal-bg); color: var(--color-terminal-green); min-height: 100vh; line-height: 1.5; }
+
+        /* Loading Screen */
+        .loading-screen { position: fixed; inset: 0; background-color: #0066ff; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s, visibility 0.5s; }
+        .loading-screen[aria-hidden="true"] { opacity: 0; visibility: hidden; pointer-events: none; }
+        .loading-screen__title { font-family: 'Press Start 2P', monospace; font-size: 1.2rem; color: white; margin-bottom: 24px; letter-spacing: 4px; }
+        .loading-screen__bar-container { width: min(400px, 90vw); height: 32px; border: 3px solid white; padding: 4px; }
+        .loading-screen__bar { height: 100%; width: 0%; background: repeating-linear-gradient(90deg, white 0px, white 12px, transparent 12px, transparent 16px); transition: width 100ms linear; }
+        .loading-screen__percentage { font-family: 'Press Start 2P', monospace; font-size: 0.8rem; color: white; margin-top: 16px; }
+
+        /* Landing Page */
+        .landing-page { min-height: 100vh; background-color: var(--color-terminal-bg); display: none; flex-direction: column; }
+        .landing-page[aria-hidden="false"] { display: flex; }
+        .landing-page::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px); pointer-events: none; z-index: 100; }
+        .landing-page__header { display: flex; justify-content: space-between; align-items: center; padding: 24px 48px; border-bottom: 1px solid var(--color-terminal-green-dim); }
+        .logo { display: flex; align-items: center; gap: 16px; }
+        .logo__image { width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 0 10px var(--color-sun-yellow)); }
+        .logo__text { font-family: 'Press Start 2P', monospace; font-size: 1.1rem; color: var(--color-sun-yellow); text-shadow: 0 0 10px var(--color-sun-orange); }
+        .header-status { display: flex; align-items: center; gap: 24px; font-size: 1rem; }
+        .header-status__item { display: flex; align-items: center; gap: 8px; }
+        .status-indicator { width: 8px; height: 8px; background-color: var(--color-terminal-green); border-radius: 50%; box-shadow: 0 0 8px var(--color-terminal-green); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.3; } }
+        .landing-page__main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; }
+        .terminal { width: 100%; max-width: 700px; background-color: rgba(0, 20, 0, 0.8); border: 2px solid var(--color-terminal-green); box-shadow: 0 0 20px var(--color-terminal-green-glow); }
+        .terminal__header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background-color: var(--color-terminal-green-dim); border-bottom: 2px solid var(--color-terminal-green); }
+        .terminal__btn { width: 12px; height: 12px; border-radius: 50%; border: none; }
+        .terminal__btn--close { background-color: #ff5f56; }
+        .terminal__btn--minimize { background-color: #ffbd2e; }
+        .terminal__btn--maximize { background-color: #27ca40; }
+        .terminal__title { flex: 1; text-align: center; font-family: 'Press Start 2P', monospace; font-size: 0.6rem; color: var(--color-terminal-bg); }
+        .terminal__body { padding: 32px; min-height: 300px; }
+        .terminal__line { font-size: 1.2rem; line-height: 1.8; margin-bottom: 8px; }
+        .terminal__prompt { color: var(--color-sun-yellow); }
+        .terminal__command { color: var(--color-terminal-green); }
+        .terminal__cursor { display: inline-block; width: 10px; height: 1.2rem; background-color: var(--color-terminal-green); animation: blink 0.8s infinite step-end; vertical-align: middle; margin-left: 4px; }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        .upload-zone { margin-top: 24px; padding: 32px; border: 2px dashed var(--color-terminal-green-dim); background-color: rgba(0, 255, 65, 0.03); text-align: center; cursor: pointer; transition: all 0.3s; }
+        .upload-zone:hover { border-color: var(--color-terminal-green); background-color: rgba(0, 255, 65, 0.08); }
+        .upload-zone--dragover { border-color: var(--color-sun-yellow); background-color: rgba(255, 221, 0, 0.1); }
+        .upload-zone__icon { font-size: 3rem; margin-bottom: 16px; display: block; }
+        .upload-zone__text { font-size: 1.4rem; margin-bottom: 8px; }
+        .upload-zone__button { margin-top: 20px; padding: 12px 32px; font-family: 'Press Start 2P', monospace; font-size: 0.7rem; background-color: transparent; border: 2px solid var(--color-terminal-green); color: var(--color-terminal-green); cursor: pointer; transition: all 0.15s; }
+        .upload-zone__button:hover { background-color: var(--color-terminal-green); color: var(--color-terminal-bg); }
+        .capital-input { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; font-size: 1.1rem; }
+        .capital-input__field { background-color: transparent; border: none; border-bottom: 2px solid var(--color-terminal-green-dim); padding: 8px 12px; font-family: 'VT323', monospace; font-size: 1.4rem; color: var(--color-sun-yellow); width: 120px; text-align: right; outline: none; }
+        .capital-input__field:focus { border-color: var(--color-terminal-green); }
+        .landing-page__footer { padding: 24px 48px; border-top: 1px solid var(--color-terminal-green-dim); display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--color-terminal-green-dim); }
+
+        /* Dashboard - Terminal Style */
+        .dashboard { display: none; min-height: 100vh; background-color: var(--color-terminal-bg); }
+        .dashboard[aria-hidden="false"] { display: flex; }
+        .dashboard::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px); pointer-events: none; z-index: 100; }
+        .dashboard__container { display: flex; min-height: 100vh; width: 100%; }
+
+        /* Sidebar - Terminal Style */
+        .sidebar { width: var(--sidebar-width); background-color: rgba(0, 10, 0, 0.9); border-right: 1px solid var(--color-terminal-green-dim); padding: 20px; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; }
+        .sidebar__logo { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .sidebar__logo-image { width: 32px; height: 32px; object-fit: contain; }
+        .sidebar__logo-text { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: var(--color-sun-yellow); }
+        .sidebar__timestamp { font-size: 0.9rem; color: var(--color-terminal-green-dim); margin-bottom: 24px; }
+        .account-section { margin-bottom: 24px; }
+        .account-section__title { font-size: 0.9rem; color: var(--color-terminal-green); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; border-bottom: 1px solid var(--color-terminal-green-dim); padding-bottom: 8px; }
+        .account-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 1rem; }
+        .account-item__label { color: var(--color-terminal-green-dim); }
+        .account-item__value { font-weight: 600; color: var(--color-terminal-green); }
+        .account-item__value--positive { color: var(--color-success); }
+        .account-item__value--negative { color: var(--color-danger); }
+
+        /* Social Links */
+        .social-links { margin-top: auto; padding-top: 24px; border-top: 1px solid var(--color-terminal-green-dim); display: flex; gap: 12px; justify-content: center; }
+        .social-link { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-terminal-green-dim); background: transparent; color: var(--color-terminal-green); transition: all 0.2s; text-decoration: none; }
+        .social-link:hover { background: var(--color-terminal-green); color: var(--color-terminal-bg); border-color: var(--color-terminal-green); box-shadow: 0 0 10px var(--color-terminal-green-glow); }
+        .social-link svg { width: 20px; height: 20px; }
+
+        /* Main Content */
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 20px 24px; }
+        .main-content__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-terminal-green-dim); padding-bottom: 16px; }
+        .main-content__title { font-family: 'Press Start 2P', monospace; font-size: 0.9rem; color: var(--color-sun-yellow); }
+        .header-controls { display: flex; align-items: center; gap: 16px; }
+        .period-tabs { display: flex; gap: 4px; }
+        .period-tabs__tab { padding: 8px 16px; font-family: 'VT323', monospace; font-size: 1rem; color: var(--color-terminal-green-dim); background: transparent; border: 1px solid var(--color-terminal-green-dim); cursor: pointer; transition: all 0.15s; }
+        .period-tabs__tab:hover { color: var(--color-terminal-green); border-color: var(--color-terminal-green); }
+        .period-tabs__tab[aria-selected="true"] { background: var(--color-terminal-green); color: var(--color-terminal-bg); border-color: var(--color-terminal-green); }
+        .export-button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: transparent; border: 1px solid var(--color-terminal-green-dim); color: var(--color-terminal-green-dim); font-family: 'VT323', monospace; font-size: 1rem; cursor: pointer; transition: all 0.15s; }
+        .export-button:hover { background: var(--color-terminal-green); color: var(--color-terminal-bg); border-color: var(--color-terminal-green); }
+        .export-button__icon { width: 16px; height: 16px; }
+
+        /* Cards - Terminal Style with flex */
+        .card { background: rgba(0, 15, 0, 0.6); border: 1px solid var(--color-terminal-green-dim); padding: 16px; position: relative; display: flex; flex-direction: column; height: 100%; }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--color-terminal-green), transparent); }
+        .card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed var(--color-terminal-green-dim); flex-shrink: 0; }
+        .card__title { font-size: 1.1rem; color: var(--color-terminal-green); text-transform: uppercase; letter-spacing: 0.05em; }
+        .card__action { color: var(--color-sun-yellow); font-size: 0.9rem; }
+        .card__content { flex: 1; display: flex; flex-direction: column; }
+
+        /* Stats Grid - Compact */
+        .stats-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: rgba(0, 15, 0, 0.6); border: 1px solid var(--color-terminal-green-dim); padding: 12px; text-align: center; }
+        .stat-card__label { font-size: 0.85rem; color: var(--color-terminal-green-dim); margin-bottom: 4px; text-transform: uppercase; }
+        .stat-card__value { font-size: 1.4rem; font-weight: 600; color: var(--color-terminal-green); }
+        .stat-card__value--positive { color: var(--color-success); }
+        .stat-card__value--negative { color: var(--color-danger); }
+        .stat-card__sub { font-size: 0.8rem; color: var(--color-terminal-green-dim); margin-top: 2px; }
+
+        /* Chart Containers - Fill space */
+        .chart-section { margin-bottom: 16px; }
+        .chart-container { height: 280px; position: relative; }
+        .chart-container--sm { height: 200px; flex: 1; }
+
+        /* Grid Layouts - Equal height */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+        .grid-3 > * { min-height: 420px; }
+
+        /* Sessions - Full Height */
+        .sessions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+        .session-item { background: rgba(0, 30, 0, 0.5); border: 1px solid var(--color-terminal-green-dim); padding: 16px 12px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+        .session-item__name { font-size: 0.9rem; color: var(--color-terminal-green); text-transform: uppercase; margin-bottom: 8px; font-weight: 600; letter-spacing: 0.05em; }
+        .session-item__pnl { font-size: 1.5rem; font-weight: 700; }
+        .session-item__meta { font-size: 0.9rem; color: var(--color-terminal-green-dim); margin-top: 6px; }
+
+        /* Data Table - Better readability */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; font-size: 0.9rem; color: var(--color-terminal-green); text-transform: uppercase; padding: 10px 8px; border-bottom: 1px solid var(--color-terminal-green-dim); font-weight: 600; }
+        .data-table td { padding: 10px 8px; font-size: 1rem; border-bottom: 1px dashed var(--color-terminal-green-dim); color: var(--color-terminal-green); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover { background: rgba(0, 255, 65, 0.08); }
+
+        /* Calendar - Maximum Readability */
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .calendar-nav__button { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--color-terminal-green-dim); color: var(--color-terminal-green); cursor: pointer; font-size: 1rem; font-family: inherit; }
+        .calendar-nav__button:hover { background: var(--color-terminal-green); color: var(--color-terminal-bg); }
+        .calendar-nav__month { font-size: 1.3rem; color: var(--color-terminal-green); font-weight: 700; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .calendar-grid__header { font-size: 0.9rem; color: var(--color-terminal-green); text-align: center; padding: 4px 0; font-weight: 700; }
+        .calendar-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+        .calendar-day:hover:not(.calendar-day--empty) { border-color: var(--color-terminal-green); box-shadow: 0 0 8px var(--color-terminal-green-glow); }
+        .calendar-day--clickable { cursor: pointer; }
+        .calendar-day--clickable:hover { transform: scale(1.05); }
+        .calendar-day--empty { cursor: default; background: transparent; }
+        .calendar-day--no-trade { background: rgba(0, 30, 0, 0.4); }
+        .calendar-day--positive { background: var(--color-success); }
+        .calendar-day--negative { background: var(--color-danger); }
+        .calendar-day--positive.intensity-1 { background: rgba(63, 185, 80, 0.4); }
+        .calendar-day--positive.intensity-2 { background: rgba(63, 185, 80, 0.65); }
+        .calendar-day--positive.intensity-3 { background: rgba(63, 185, 80, 0.9); }
+        .calendar-day--negative.intensity-1 { background: rgba(248, 81, 73, 0.4); }
+        .calendar-day--negative.intensity-2 { background: rgba(248, 81, 73, 0.65); }
+        .calendar-day--negative.intensity-3 { background: rgba(248, 81, 73, 0.9); }
+        .calendar-day__num { font-weight: 700; font-size: 1.1rem; color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); line-height: 1.2; }
+        .calendar-day--no-trade .calendar-day__num { color: var(--color-terminal-green-dim); text-shadow: none; }
+        .calendar-day__pnl { font-size: 0.85rem; font-weight: 700; color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); line-height: 1.2; }
+        .calendar-summary { display: flex; justify-content: space-around; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--color-terminal-green-dim); }
+        .calendar-summary__item { text-align: center; }
+        .calendar-summary__label { font-size: 0.85rem; color: var(--color-terminal-green-dim); text-transform: uppercase; }
+        .calendar-summary__value { font-size: 1.2rem; color: var(--color-terminal-green); margin-top: 4px; font-weight: 700; }
+
+        /* Direction - Better spacing */
+        .direction-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
+        .direction-item { background: rgba(0, 30, 0, 0.5); border: 1px solid var(--color-terminal-green-dim); padding: 20px 16px; text-align: center; }
+        .direction-item__label { font-size: 1rem; color: var(--color-terminal-green); text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+        .direction-item__pnl { font-size: 1.6rem; font-weight: 700; }
+
+        /* Avg Grid - Better spacing */
+        .avg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .avg-item { background: rgba(0, 30, 0, 0.5); border: 1px solid var(--color-terminal-green-dim); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; justify-content: center; min-height: 120px; }
+        .avg-item__label { font-size: 1rem; color: var(--color-terminal-green); text-transform: uppercase; margin-bottom: 12px; font-weight: 600; }
+        .avg-item__value { font-size: 1.8rem; font-weight: 700; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal {
+            background: rgba(0, 15, 0, 0.95);
+            border: 2px solid var(--color-terminal-green);
+            box-shadow: 0 0 40px var(--color-terminal-green-glow), 0 0 80px rgba(0, 255, 65, 0.1);
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+        .modal__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-terminal-green-dim);
+            background: linear-gradient(180deg, rgba(0, 255, 65, 0.1) 0%, transparent 100%);
+        }
+        .modal__title {
+            font-size: 1.2rem;
+            color: var(--color-terminal-green);
+            font-weight: 600;
+        }
+        .modal__close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--color-terminal-green-dim);
+            color: var(--color-terminal-green);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .modal__close:hover {
+            background: var(--color-danger);
+            border-color: var(--color-danger);
+            color: #fff;
+        }
+        .modal__summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px dashed var(--color-terminal-green-dim);
+        }
+        .modal__summary-item {
+            text-align: center;
+            padding: 12px;
+            background: rgba(0, 30, 0, 0.5);
+            border: 1px solid var(--color-terminal-green-dim);
+        }
+        .modal__summary-label {
+            font-size: 0.8rem;
+            color: var(--color-terminal-green-dim);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .modal__summary-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--color-terminal-green);
+        }
+        .modal__content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+        .modal__trades-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .modal__trades-table th {
+            text-align: left;
+            font-size: 0.85rem;
+            color: var(--color-terminal-green);
+            text-transform: uppercase;
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--color-terminal-green-dim);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            background: rgba(0, 15, 0, 0.98);
+        }
+        .modal__trades-table td {
+            padding: 10px 8px;
+            font-size: 1rem;
+            border-bottom: 1px dashed var(--color-terminal-green-dim);
+            color: var(--color-terminal-green);
+        }
+        .modal__trades-table tr:hover {
+            background: rgba(0, 255, 65, 0.08);
+        }
+        .trade-side {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border-radius: 2px;
+        }
+        .trade-side--long {
+            background: rgba(88, 166, 255, 0.2);
+            color: var(--color-info);
+            border: 1px solid var(--color-info);
+        }
+        .trade-side--short {
+            background: rgba(163, 113, 247, 0.2);
+            color: var(--color-purple);
+            border: 1px solid var(--color-purple);
+        }
+        .modal__no-trades {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-terminal-green-dim);
+            font-size: 1.1rem;
+        }
+
+        /* Utility */
+        .text-positive { color: var(--color-success) !important; }
+        .text-negative { color: var(--color-danger) !important; }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+        /* Responsive */
+        @media (max-width: 1400px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } .grid-3 { grid-template-columns: repeat(2, 1fr); } .grid-3 > * { min-height: 380px; } }
+        @media (max-width: 900px) { .sidebar { display: none; } .main-content { margin-left: 0; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .grid-2, .grid-3 { grid-template-columns: 1fr; } .grid-3 > * { min-height: auto; } }
+        @media print { .sidebar, .export-button, .period-tabs { display: none !important; } .main-content { margin-left: 0; } }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen" role="status" aria-live="polite">
+        <h1 class="loading-screen__title">LOADING</h1>
+        <div class="loading-screen__bar-container" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            <div class="loading-screen__bar" id="loadingBar"></div>
+        </div>
+        <p class="loading-screen__percentage" id="loadingPercentage">0%</p>
+    </div>
+
+    <div class="landing-page" id="landingPage" aria-hidden="true">
+        <header class="landing-page__header">
+            <div class="logo">
+                <img class="logo__image" id="landingLogoImg" src="" alt="Soleil Capital" width="56" height="56">
+                <span class="logo__text">SOLEIL CAPITAL</span>
+            </div>
+            <div class="header-status">
+                <div class="header-status__item"><span class="status-indicator"></span><span>SYSTEM ONLINE</span></div>
+                <time class="header-status__item" id="currentTime">--:--:--</time>
+            </div>
+        </header>
+        <main class="landing-page__main">
+            <div class="terminal">
+                <div class="terminal__header">
+                    <span class="terminal__btn terminal__btn--close"></span>
+                    <span class="terminal__btn terminal__btn--minimize"></span>
+                    <span class="terminal__btn terminal__btn--maximize"></span>
+                    <span class="terminal__title">SOLEIL TERMINAL v5.0</span>
+                </div>
+                <div class="terminal__body">
+                    <p class="terminal__line"><span class="terminal__prompt">root@soleil:~$</span><span class="terminal__command"> initialize trading_journal</span></p>
+                    <p class="terminal__line"><span class="terminal__command">&gt; Loading modules...</span></p>
+                    <p class="terminal__line"><span class="terminal__command">&gt; Analytics engine ready</span></p>
+                    <p class="terminal__line"><span class="terminal__command">&gt; Awaiting data input<span class="terminal__cursor"></span></span></p>
+                    <div class="upload-zone" id="uploadZone" role="button" tabindex="0">
+                        <span class="upload-zone__icon">📁</span>
+                        <p class="upload-zone__text">DROP YOUR CSV FILE HERE</p>
+                        <button type="button" class="upload-zone__button" id="selectFileBtn">SELECT FILE</button>
+                        <input type="file" id="fileInput" accept=".csv" class="visually-hidden">
+                    </div>
+                    <div class="capital-input">
+                        <label for="capitalInput">&gt; Starting capital:</label>
+                        <span>$</span>
+                        <input type="number" class="capital-input__field" id="capitalInput" value="25000" min="0" step="1000">
+                        <span>USD</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer class="landing-page__footer">
+            <p>&copy; <span id="currentYear">2024</span> Soleil Capital</p>
+            <p>[v5.0.0]</p>
+        </footer>
+    </div>
+
+    <div class="dashboard" id="dashboard" aria-hidden="true">
+        <div class="dashboard__container">
+            <aside class="sidebar">
+                <div class="sidebar__logo">
+                    <img class="sidebar__logo-image" id="sidebarLogoImg" src="" alt="" width="32" height="32">
+                    <span class="sidebar__logo-text">SOLEIL CAPITAL</span>
+                </div>
+                <time class="sidebar__timestamp" id="timestamp"></time>
+                <section class="account-section">
+                    <h2 class="account-section__title">&gt; Account</h2>
+                    <div class="account-item"><span class="account-item__label">Capital</span><span class="account-item__value" id="sidebarCapital">$25,000</span></div>
+                    <div class="account-item"><span class="account-item__label">Value</span><span class="account-item__value" id="sidebarValue">$0</span></div>
+                    <div class="account-item"><span class="account-item__label">P&L</span><span class="account-item__value" id="sidebarPnl">$0</span></div>
+                    <div class="account-item"><span class="account-item__label">ROI</span><span class="account-item__value" id="sidebarRoi">0%</span></div>
+                </section>
+                <section class="account-section">
+                    <h2 class="account-section__title">&gt; Fees</h2>
+                    <div class="account-item"><span class="account-item__label">Trading</span><span class="account-item__value account-item__value--negative" id="sidebarTradingFees">$0</span></div>
+                    <div class="account-item"><span class="account-item__label">Funding</span><span class="account-item__value account-item__value--negative" id="sidebarFundingFees">$0</span></div>
+                    <div class="account-item"><span class="account-item__label">Total</span><span class="account-item__value account-item__value--negative" id="sidebarTotalFees">$0</span></div>
+                </section>
+                <nav class="social-links" aria-label="Social links">
+                    <a href="https://x.com/sunboud0" target="_blank" rel="noopener noreferrer" class="social-link" title="Follow on X">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                    <a href="https://discord.gg/S8rK2WuvCx" target="_blank" rel="noopener noreferrer" class="social-link" title="Join Discord">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                    </a>
+                    <a href="https://app.extended.exchange/join/SUNBOUD" target="_blank" rel="noopener noreferrer" class="social-link" title="Join Extended">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </a>
+                </nav>
+            </aside>
+            <main class="main-content" id="mainContent">
+                <header class="main-content__header">
+                    <h1 class="main-content__title">&gt; PORTFOLIO_PERFORMANCE</h1>
+                    <div class="header-controls">
+                        <nav class="period-tabs" role="tablist">
+                            <button class="period-tabs__tab" role="tab" aria-selected="false" data-period="7">7D</button>
+                            <button class="period-tabs__tab" role="tab" aria-selected="false" data-period="30">1M</button>
+                            <button class="period-tabs__tab" role="tab" aria-selected="false" data-period="90">3M</button>
+                            <button class="period-tabs__tab" role="tab" aria-selected="true" data-period="all">ALL</button>
+                        </nav>
+                        <button type="button" class="export-button" id="exportBtn">
+                            <svg class="export-button__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            EXPORT
+                        </button>
+                    </div>
+                </header>
+                <section class="stats-grid" id="statsGrid"></section>
+                <section class="chart-section">
+                    <div class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Equity Curve</h2></div>
+                        <div class="chart-container"><canvas id="equityChart"></canvas></div>
+                    </div>
+                </section>
+                <div class="grid-3">
+                    <section class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Calendar</h2></div>
+                        <div id="calendarWidget"></div>
+                    </section>
+                    <section class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Sessions</h2></div>
+                        <div class="card__content">
+                            <div class="sessions-grid" id="sessionsGrid"></div>
+                            <div class="chart-container--sm"><canvas id="sessionChart"></canvas></div>
+                        </div>
+                    </section>
+                    <section class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Day of Week</h2></div>
+                        <div class="card__content">
+                            <div class="chart-container--sm" style="height:100%"><canvas id="dowChart"></canvas></div>
+                        </div>
+                    </section>
+                </div>
+                <div class="grid-3">
+                    <section class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Avg Win/Loss</h2></div>
+                        <div class="card__content">
+                            <div class="avg-grid" id="avgGrid"></div>
+                        </div>
+                    </section>
+                    <section class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Top Markets</h2><span class="card__action" id="marketCount">5</span></div>
+                        <table class="data-table" id="marketsTable"><thead><tr><th>Symbol</th><th>P&L</th><th>#</th><th>WR</th></tr></thead><tbody></tbody></table>
+                    </section>
+                    <section class="card">
+                        <div class="card__header"><h2 class="card__title">&gt; Long vs Short</h2></div>
+                        <div class="card__content">
+                            <div class="direction-grid" id="directionGrid"></div>
+                            <div class="chart-container--sm"><canvas id="directionChart"></canvas></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for day details -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <div class="modal__header">
+                <h3 class="modal__title" id="modalTitle">&gt; Trades - January 5, 2026</h3>
+                <button type="button" class="modal__close" id="modalClose">✕</button>
+            </div>
+            <div class="modal__summary" id="modalSummary"></div>
+            <div class="modal__content" id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+    'use strict';
+    const AppState = { charts: {}, calendarData: {}, tradesPerDay: {}, currentCalendarMonth: null, initialCapital: 25000, equityData: [], allPositions: [], currentPeriod: 'all', logoDataUrl: '', sessionData: {}, directionData: {} };
+    const CONSTANTS = { MONTH_NAMES: ['January','February','March','April','May','June','July','August','September','October','November','December'], DAY_NAMES: ['Mo','Tu','We','Th','Fr','Sa','Su'], DOW_NAMES: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], DOW_ORDER: [1,2,3,4,5,6,0], CHART_COLORS: { green: '#3fb950', red: '#f85149', blue: '#58a6ff', purple: '#a371f7', grid: 'rgba(0, 255, 65, 0.1)', text: '#00aa2a' }, ANNUALIZATION_FACTOR: Math.sqrt(365) };
+    const $ = id => document.getElementById(id);
+    const escapeHtml = str => { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; };
+    const formatCompact = n => Math.abs(n) >= 1000 ? `${(n/1000).toFixed(1)}k` : n.toFixed(0);
+    const formatMoney = n => '$' + Math.abs(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const formatSigned = n => (n >= 0 ? '+' : '-') + formatMoney(Math.abs(n));
+    const getSession = date => { const h = (date.getUTCHours() + 1) % 24; if (h >= 1 && h < 9) return 'Asia'; if (h >= 9 && h < 15) return 'London'; return 'New York'; };
+    const parseCSV = csv => { const lines = csv.trim().split('\n'); if (lines.length < 2) return []; const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, '')); return lines.slice(1).filter(l => l.trim()).map(line => { const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || []; const obj = {}; headers.forEach((h, i) => obj[h] = (values[i] || '').trim().replace(/^"|"$/g, '')); return obj; }); };
+    const formatDateKey = date => date.toISOString().split('T')[0];
+    const createDateKey = (y, m, d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const generateLogoDataUrl = () => { const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="sg" cx="50%" cy="50%" r="50%"><stop offset="40%" stop-color="#ffdd00"/><stop offset="100%" stop-color="#ff9500"/></radialGradient></defs><circle cx="50" cy="50" r="25" fill="url(#sg)"/><g stroke="#ff9500" stroke-width="4" stroke-linecap="round"><line x1="50" y1="5" x2="50" y2="18"/><line x1="50" y1="82" x2="50" y2="95"/><line x1="5" y1="50" x2="18" y2="50"/><line x1="82" y1="50" x2="95" y2="50"/><line x1="18" y1="18" x2="27" y2="27"/><line x1="73" y1="73" x2="82" y2="82"/><line x1="18" y1="82" x2="27" y2="73"/><line x1="73" y1="27" x2="82" y2="18"/></g></svg>`; return 'data:image/svg+xml,' + encodeURIComponent(svg); };
+
+    const initLoadingScreen = () => { let progress = 0; const update = () => { progress += Math.random() * 8 + 2; if (progress >= 100) { progress = 100; $('loadingBar').style.width = '100%'; $('loadingPercentage').textContent = '100%'; setTimeout(() => { $('loadingScreen').setAttribute('aria-hidden', 'true'); $('landingPage').setAttribute('aria-hidden', 'false'); }, 500); return; } $('loadingBar').style.width = `${progress}%`; $('loadingPercentage').textContent = `${Math.floor(progress)}%`; setTimeout(update, 100); }; update(); };
+    const initClock = () => { const update = () => { const now = new Date(); const el = $('currentTime'); if (el) el.textContent = now.toLocaleTimeString('en-US', { hour12: false }); }; update(); setInterval(update, 1000); };
+    const initFileUpload = () => { const zone = $('uploadZone'), input = $('fileInput'), btn = $('selectFileBtn'); btn.addEventListener('click', e => { e.stopPropagation(); input.click(); }); zone.addEventListener('click', () => input.click()); zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } }); zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('upload-zone--dragover'); }); zone.addEventListener('dragleave', () => zone.classList.remove('upload-zone--dragover')); zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('upload-zone--dragover'); const file = e.dataTransfer.files[0]; if (file?.name.toLowerCase().endsWith('.csv')) processFile(file); else alert('Please upload a CSV file.'); }); input.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); }); };
+    const processFile = file => { AppState.initialCapital = parseFloat($('capitalInput').value) || 25000; const reader = new FileReader(); reader.onerror = () => alert('Error reading file.'); reader.onload = e => { try { $('landingPage').setAttribute('aria-hidden', 'true'); $('dashboard').setAttribute('aria-hidden', 'false'); parseAndRender(e.target.result); } catch (err) { console.error(err); alert('Error processing file.'); } }; reader.readAsText(file); };
+    const initPeriodTabs = () => { document.querySelectorAll('.period-tabs__tab').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.period-tabs__tab').forEach(t => t.setAttribute('aria-selected', 'false')); tab.setAttribute('aria-selected', 'true'); AppState.currentPeriod = tab.dataset.period; renderDashboard(filterByPeriod(AppState.allPositions, AppState.currentPeriod)); }); }); };
+    const filterByPeriod = (positions, period) => { if (period === 'all') return positions; const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(period, 10)); return positions.filter(p => p.closed_at >= cutoff); };
+    const initExport = () => { $('exportBtn').addEventListener('click', async () => { try { const canvas = await html2canvas($('mainContent'), { backgroundColor: '#0a0a0a', scale: 2, logging: false }); const link = document.createElement('a'); link.download = `soleil-capital-${new Date().toISOString().split('T')[0]}.png`; link.href = canvas.toDataURL('image/png'); link.click(); } catch (e) { console.error(e); alert('Export failed.'); } }); };
+
+    const parseAndRender = csv => { const raw = parseCSV(csv); AppState.allPositions = raw.map(t => ({ market: t.market || 'Unknown', side: (t.side || '').toUpperCase(), realised_pnl: parseFloat(t.realised_pnl) || 0, trading_fees: parseFloat(t.trading_fees) || 0, funding_fees: parseFloat(t.funding_fees) || 0, closed_at: new Date(t.closed_at), size: parseFloat(t.size) || 0, entry_price: parseFloat(t.entry_price) || 0, notional: (parseFloat(t.size) || 0) * (parseFloat(t.entry_price) || 0) })).filter(t => !isNaN(t.closed_at.getTime())).sort((a, b) => a.closed_at - b.closed_at); if (!AppState.allPositions.length) { alert('No valid trades found.'); return; } updateSidebar(AppState.allPositions); renderDashboard(AppState.allPositions); };
+    const updateSidebar = positions => { const totalPnl = positions.reduce((s, t) => s + t.realised_pnl, 0); const tradingFees = positions.reduce((s, t) => s + t.trading_fees, 0); const fundingFees = positions.reduce((s, t) => s + t.funding_fees, 0); const totalFees = tradingFees + fundingFees; const currentValue = AppState.initialCapital + totalPnl; const roi = ((currentValue - AppState.initialCapital) / AppState.initialCapital) * 100; const now = new Date(); $('timestamp').textContent = now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }); $('sidebarCapital').textContent = formatMoney(AppState.initialCapital); const valEl = $('sidebarValue'); valEl.textContent = formatMoney(currentValue); valEl.className = `account-item__value account-item__value--${totalPnl >= 0 ? 'positive' : 'negative'}`; const pnlEl = $('sidebarPnl'); pnlEl.textContent = formatSigned(totalPnl); pnlEl.className = `account-item__value account-item__value--${totalPnl >= 0 ? 'positive' : 'negative'}`; const roiEl = $('sidebarRoi'); roiEl.textContent = `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`; roiEl.className = `account-item__value account-item__value--${roi >= 0 ? 'positive' : 'negative'}`; $('sidebarTradingFees').textContent = formatSigned(tradingFees); $('sidebarFundingFees').textContent = formatSigned(fundingFees); $('sidebarTotalFees').textContent = formatSigned(totalFees); };
+
+    const renderDashboard = positions => { Object.values(AppState.charts).forEach(c => c?.destroy()); AppState.charts = {}; if (!positions.length) { $('statsGrid').innerHTML = '<div class="stat-card"><div class="stat-card__label">No data</div><div class="stat-card__value">-</div></div>'; return; } const metrics = calculateMetrics(positions); renderStatsGrid(metrics); renderAvgWinLoss(metrics); renderSessions(positions); renderCalendar(positions); renderMarkets(positions); renderDirection(positions); renderCharts(positions, metrics); };
+
+    const calculateMetrics = positions => { const totalPnl = positions.reduce((s, t) => s + t.realised_pnl, 0); const wins = positions.filter(t => t.realised_pnl > 0); const losses = positions.filter(t => t.realised_pnl <= 0); const winRate = (wins.length / positions.length) * 100; const totalWins = wins.reduce((s, t) => s + t.realised_pnl, 0); const totalLosses = Math.abs(losses.reduce((s, t) => s + t.realised_pnl, 0)); const profitFactor = totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0; const avgWin = wins.length > 0 ? totalWins / wins.length : 0; const avgLoss = losses.length > 0 ? totalLosses / losses.length : 0; const expectancy = (winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss; const dailyPnl = {}; positions.forEach(t => { const key = formatDateKey(t.closed_at); dailyPnl[key] = (dailyPnl[key] || 0) + t.realised_pnl; }); const days = Object.keys(dailyPnl).sort(); let capital = AppState.initialCapital, peak = AppState.initialCapital, maxDDpct = 0; const dailyReturns = [], equityData = []; days.forEach(day => { const pnl = dailyPnl[day]; dailyReturns.push((pnl / capital) * 100); capital += pnl; peak = Math.max(peak, capital); maxDDpct = Math.min(maxDDpct, ((capital - peak) / peak) * 100); equityData.push({ x: new Date(day), y: capital }); }); AppState.equityData = equityData; const avgReturn = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length : 0; const variance = dailyReturns.length > 0 ? dailyReturns.reduce((s, r) => s + Math.pow(r - avgReturn, 2), 0) / dailyReturns.length : 0; const stdDev = Math.sqrt(variance); const sharpeDaily = stdDev > 0 ? avgReturn / stdDev : 0; const sharpeAnnualized = sharpeDaily * CONSTANTS.ANNUALIZATION_FACTOR; const roiPct = (totalPnl / AppState.initialCapital) * 100; const recoveryRatio = maxDDpct !== 0 ? roiPct / Math.abs(maxDDpct) : 0; return { totalPnl, wins, losses, winRate, totalWins, totalLosses, profitFactor, avgWin, avgLoss, expectancy, maxDDpct, sharpeDaily, sharpeAnnualized, recoveryRatio, tradeCount: positions.length }; };
+
+    const renderStatsGrid = metrics => { const stats = [ { label: 'Total P&L', value: formatSigned(metrics.totalPnl), cls: metrics.totalPnl >= 0 ? 'positive' : 'negative', sub: `${metrics.tradeCount}t` }, { label: 'Win Rate', value: `${metrics.winRate.toFixed(1)}%`, cls: '', sub: `${metrics.wins.length}W/${metrics.losses.length}L` }, { label: 'Profit Factor', value: metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor.toFixed(2), cls: metrics.profitFactor >= 1.5 ? 'positive' : '', sub: 'W/L ratio' }, { label: 'Sharpe', value: metrics.sharpeAnnualized.toFixed(2), cls: metrics.sharpeAnnualized >= 2 ? 'positive' : '', sub: `D:${metrics.sharpeDaily.toFixed(2)}` }, { label: 'Max DD', value: `${metrics.maxDDpct.toFixed(1)}%`, cls: 'negative', sub: 'Peak-trough' }, { label: 'Expectancy', value: formatSigned(metrics.expectancy), cls: metrics.expectancy >= 0 ? 'positive' : 'negative', sub: '/trade' }, { label: 'Recovery', value: metrics.recoveryRatio.toFixed(2), cls: metrics.recoveryRatio >= 1 ? 'positive' : '', sub: 'ROI/DD' } ]; $('statsGrid').innerHTML = stats.map(s => `<article class="stat-card"><p class="stat-card__label">${escapeHtml(s.label)}</p><p class="stat-card__value ${s.cls ? `stat-card__value--${s.cls}` : ''}">${escapeHtml(s.value)}</p><p class="stat-card__sub">${escapeHtml(s.sub)}</p></article>`).join(''); };
+
+    const renderAvgWinLoss = metrics => { $('avgGrid').innerHTML = `<div class="avg-item"><p class="avg-item__label">Avg Win</p><p class="avg-item__value text-positive">${formatSigned(metrics.avgWin)}</p></div><div class="avg-item"><p class="avg-item__label">Avg Loss</p><p class="avg-item__value text-negative">-${formatMoney(metrics.avgLoss)}</p></div>`; };
+
+    const renderSessions = positions => { const sessionData = { Asia: { pnl: 0, trades: 0, wins: 0 }, London: { pnl: 0, trades: 0, wins: 0 }, 'New York': { pnl: 0, trades: 0, wins: 0 } }; positions.forEach(t => { const s = getSession(t.closed_at); sessionData[s].pnl += t.realised_pnl; sessionData[s].trades++; if (t.realised_pnl > 0) sessionData[s].wins++; }); $('sessionsGrid').innerHTML = Object.entries(sessionData).map(([name, d]) => `<article class="session-item"><p class="session-item__name">${escapeHtml(name)}</p><p class="session-item__pnl ${d.pnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(d.pnl)}</p><p class="session-item__meta">${d.trades}t • ${d.trades ? ((d.wins / d.trades) * 100).toFixed(0) : 0}%</p></article>`).join(''); AppState.sessionData = sessionData; };
+
+    const renderCalendar = positions => { AppState.calendarData = {}; AppState.tradesPerDay = {}; positions.forEach(t => { const key = formatDateKey(t.closed_at); if (!AppState.calendarData[key]) { AppState.calendarData[key] = { pnl: 0, trades: 0 }; AppState.tradesPerDay[key] = []; } AppState.calendarData[key].pnl += t.realised_pnl; AppState.calendarData[key].trades++; AppState.tradesPerDay[key].push(t); }); const last = positions[positions.length - 1]; AppState.currentCalendarMonth = new Date(last.closed_at.getFullYear(), last.closed_at.getMonth(), 1); renderCalendarMonth(); };
+
+    const renderCalendarMonth = () => { const year = AppState.currentCalendarMonth.getFullYear(), month = AppState.currentCalendarMonth.getMonth(); const startDow = (new Date(year, month, 1).getDay() + 6) % 7; const daysInMonth = new Date(year, month + 1, 0).getDate(); let monthPnl = 0, monthTrades = 0, monthWins = 0; for (let d = 1; d <= daysInMonth; d++) { const key = createDateKey(year, month, d); if (AppState.calendarData[key]) { monthPnl += AppState.calendarData[key].pnl; monthTrades += AppState.calendarData[key].trades; if (AppState.calendarData[key].pnl > 0) monthWins++; } } const maxDayPnl = Math.max(...Object.values(AppState.calendarData).map(d => Math.abs(d.pnl)), 1); let html = `<div class="calendar-nav"><button type="button" class="calendar-nav__button" data-direction="-1">◀</button><span class="calendar-nav__month">${CONSTANTS.MONTH_NAMES[month]} ${year}</span><button type="button" class="calendar-nav__button" data-direction="1">▶</button></div><div class="calendar-grid">${CONSTANTS.DAY_NAMES.map(d => `<div class="calendar-grid__header">${d}</div>`).join('')}${'<div class="calendar-day calendar-day--empty"></div>'.repeat(startDow)}`; for (let d = 1; d <= daysInMonth; d++) { const key = createDateKey(year, month, d), data = AppState.calendarData[key]; if (!data) html += `<div class="calendar-day calendar-day--no-trade"><span class="calendar-day__num">${d}</span></div>`; else { const intensity = Math.min(3, Math.ceil((Math.abs(data.pnl) / maxDayPnl) * 3)), cls = data.pnl >= 0 ? 'positive' : 'negative'; html += `<div class="calendar-day calendar-day--${cls} intensity-${intensity} calendar-day--clickable" data-date="${key}" title="${formatSigned(data.pnl)} • ${data.trades} trades"><span class="calendar-day__num">${d}</span><span class="calendar-day__pnl">${data.pnl >= 0 ? '+' : ''}${formatCompact(data.pnl)}</span></div>`; } } html += `</div><div class="calendar-summary"><div class="calendar-summary__item"><p class="calendar-summary__label">P&L</p><p class="calendar-summary__value ${monthPnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(monthPnl)}</p></div><div class="calendar-summary__item"><p class="calendar-summary__label">Trades</p><p class="calendar-summary__value">${monthTrades}</p></div><div class="calendar-summary__item"><p class="calendar-summary__label">Win Days</p><p class="calendar-summary__value text-positive">${monthWins}</p></div></div>`; $('calendarWidget').innerHTML = html; document.querySelectorAll('.calendar-nav__button').forEach(btn => { btn.addEventListener('click', () => { AppState.currentCalendarMonth.setMonth(AppState.currentCalendarMonth.getMonth() + parseInt(btn.dataset.direction, 10)); renderCalendarMonth(); }); }); document.querySelectorAll('.calendar-day--clickable').forEach(day => { day.addEventListener('click', () => openDayModal(day.dataset.date)); }); };
+
+    const renderMarkets = positions => { const marketData = {}; positions.forEach(t => { if (!marketData[t.market]) marketData[t.market] = { pnl: 0, trades: 0, wins: 0 }; marketData[t.market].pnl += t.realised_pnl; marketData[t.market].trades++; if (t.realised_pnl > 0) marketData[t.market].wins++; }); const sorted = Object.entries(marketData).sort((a, b) => b[1].pnl - a[1].pnl); $('marketCount').textContent = `${Math.min(5, sorted.length)}/${sorted.length}`; $('marketsTable').querySelector('tbody').innerHTML = sorted.slice(0, 5).map(([m, d]) => `<tr><td>${escapeHtml(m.replace('-USD', ''))}</td><td class="${d.pnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(d.pnl)}</td><td>${d.trades}</td><td>${((d.wins / d.trades) * 100).toFixed(0)}%</td></tr>`).join(''); };
+
+    const renderDirection = positions => { const longs = positions.filter(t => t.side === 'LONG'), shorts = positions.filter(t => t.side === 'SHORT'); const longPnl = longs.reduce((s, t) => s + t.realised_pnl, 0), shortPnl = shorts.reduce((s, t) => s + t.realised_pnl, 0); $('directionGrid').innerHTML = `<div class="direction-item"><p class="direction-item__label">Long</p><p class="direction-item__pnl ${longPnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(longPnl)}</p></div><div class="direction-item"><p class="direction-item__label">Short</p><p class="direction-item__pnl ${shortPnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(shortPnl)}</p></div>`; AppState.directionData = { longs, shorts, longPnl, shortPnl }; };
+
+    const renderCharts = (positions, metrics) => { const colors = CONSTANTS.CHART_COLORS; const commonOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+        AppState.charts.equity = new Chart($('equityChart'), { type: 'line', data: { datasets: [{ data: AppState.equityData, borderColor: colors.green, backgroundColor: 'rgba(0, 255, 65, 0.1)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 1, pointHoverRadius: 4, pointBackgroundColor: colors.green }] }, options: { ...commonOpts, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0a0a0a', borderColor: '#00ff41', borderWidth: 1, titleColor: '#00aa2a', bodyColor: '#00ff41', padding: 10, displayColors: false, callbacks: { title: ctx => new Date(ctx[0].parsed.x).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), label: ctx => `Value: ${formatMoney(ctx.parsed.y)}`, afterLabel: ctx => { const p = ctx.parsed.y - AppState.initialCapital; return `P&L: ${formatSigned(p)} (${((p/AppState.initialCapital)*100).toFixed(1)}%)`; } } } }, scales: { x: { type: 'time', time: { unit: 'day' }, grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 10 } } }, y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 10 }, callback: v => `$${(v/1000).toFixed(0)}k` } } } } });
+        const sessionData = AppState.sessionData; AppState.charts.session = new Chart($('sessionChart'), { type: 'bar', data: { labels: ['Asia', 'London', 'New York'], datasets: [{ data: [sessionData.Asia.pnl, sessionData.London.pnl, sessionData['New York'].pnl], backgroundColor: ['Asia', 'London', 'New York'].map(s => sessionData[s].pnl >= 0 ? colors.green : colors.red), borderRadius: 2 }] }, options: { ...commonOpts, scales: { x: { grid: { display: false }, ticks: { color: colors.text, font: { size: 10 } } }, y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 9 }, callback: v => `$${(v/1000).toFixed(0)}k` } } } } });
+        const dowData = Array(7).fill(null).map(() => ({ pnl: 0, trades: 0, wins: 0 })); positions.forEach(t => { const d = t.closed_at.getDay(); dowData[d].pnl += t.realised_pnl; dowData[d].trades++; if (t.realised_pnl > 0) dowData[d].wins++; }); AppState.charts.dow = new Chart($('dowChart'), { type: 'bar', data: { labels: CONSTANTS.DOW_ORDER.map(i => CONSTANTS.DOW_NAMES[i]), datasets: [{ data: CONSTANTS.DOW_ORDER.map(i => dowData[i].pnl), backgroundColor: CONSTANTS.DOW_ORDER.map(i => dowData[i].pnl >= 0 ? colors.green : colors.red), borderRadius: 2 }] }, options: { ...commonOpts, scales: { x: { grid: { display: false }, ticks: { color: colors.text, font: { size: 10 } } }, y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 9 }, callback: v => `$${(v/1000).toFixed(0)}k` } } } } });
+        const { longs, shorts } = AppState.directionData; AppState.charts.direction = new Chart($('directionChart'), { type: 'doughnut', data: { labels: ['Long', 'Short'], datasets: [{ data: [longs.length, shorts.length], backgroundColor: [colors.blue, colors.purple], borderWidth: 0 }] }, options: { ...commonOpts, plugins: { legend: { display: true, position: 'bottom', labels: { color: colors.text, font: { size: 10 }, padding: 12 } } } } });
+    };
+
+    // Modal functions
+    const openDayModal = (dateKey) => {
+        const trades = AppState.tradesPerDay[dateKey] || [];
+        const date = new Date(dateKey);
+        const dateStr = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        
+        // Calculate summary
+        const totalPnl = trades.reduce((s, t) => s + t.realised_pnl, 0);
+        const totalFees = trades.reduce((s, t) => s + t.trading_fees, 0);
+        const totalFunding = trades.reduce((s, t) => s + t.funding_fees, 0);
+        const wins = trades.filter(t => t.realised_pnl > 0).length;
+        
+        $('modalTitle').textContent = `> Trades - ${dateStr}`;
+        
+        $('modalSummary').innerHTML = `
+            <div class="modal__summary-item">
+                <p class="modal__summary-label">P&L</p>
+                <p class="modal__summary-value ${totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(totalPnl)}</p>
+            </div>
+            <div class="modal__summary-item">
+                <p class="modal__summary-label">Trades</p>
+                <p class="modal__summary-value">${trades.length}</p>
+            </div>
+            <div class="modal__summary-item">
+                <p class="modal__summary-label">Win Rate</p>
+                <p class="modal__summary-value">${trades.length ? ((wins / trades.length) * 100).toFixed(0) : 0}%</p>
+            </div>
+            <div class="modal__summary-item">
+                <p class="modal__summary-label">Total Fees</p>
+                <p class="modal__summary-value text-negative">${formatSigned(totalFees + totalFunding)}</p>
+            </div>
+        `;
+        
+        if (trades.length === 0) {
+            $('modalContent').innerHTML = '<p class="modal__no-trades">No trades on this day</p>';
+        } else {
+            $('modalContent').innerHTML = `
+                <table class="modal__trades-table">
+                    <thead>
+                        <tr>
+                            <th>Market</th>
+                            <th>Side</th>
+                            <th>P&L</th>
+                            <th>Fees</th>
+                            <th>Funding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trades.map(t => `
+                            <tr>
+                                <td>${escapeHtml(t.market.replace('-USD', ''))}</td>
+                                <td><span class="trade-side trade-side--${t.side.toLowerCase()}">${t.side}</span></td>
+                                <td class="${t.realised_pnl >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(t.realised_pnl)}</td>
+                                <td class="text-negative">${formatSigned(t.trading_fees)}</td>
+                                <td class="${t.funding_fees >= 0 ? 'text-positive' : 'text-negative'}">${formatSigned(t.funding_fees)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        $('modalOverlay').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    };
+
+    const closeModal = () => {
+        $('modalOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    };
+
+    const initModal = () => {
+        $('modalClose').addEventListener('click', closeModal);
+        $('modalOverlay').addEventListener('click', (e) => {
+            if (e.target === $('modalOverlay')) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    };
+
+    const init = () => { AppState.logoDataUrl = generateLogoDataUrl(); $('landingLogoImg').src = AppState.logoDataUrl; $('sidebarLogoImg').src = AppState.logoDataUrl; $('currentYear').textContent = new Date().getFullYear(); initLoadingScreen(); initClock(); initFileUpload(); initPeriodTabs(); initExport(); initModal(); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    </script>
+</body>
+</html>
